@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Build outputs (rebuild with build.bat)
+build/
+dist/
+installer/
+
+# Models (downloaded on first use or via tools/fetch_model.py)
+models/
+
+# Large / third-party test media
+eval/video.mp4
+*.srt.log
