@@ -5,7 +5,7 @@
 ; user's Hugging Face cache (or uses a "models" folder next to the exe, see tools\fetch_model.py).
 
 #define AppName "Subtitle Engine"
-#define AppVersion "1.1.0"
+#define AppVersion "1.2.0"
 #define AppExe "SubtitleEngine.exe"
 
 [Setup]

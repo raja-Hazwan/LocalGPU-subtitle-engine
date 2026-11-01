@@ -20,7 +20,9 @@ from .subtitles import (
 from .translate import Translator
 from .vocabulary import Vocabulary, parse_corrections, parse_words
 
-VIDEO_FILTER = "Video files (*.mp4 *.mkv *.mov *.avi);;All files (*)"
+VIDEO_EXTENSIONS = (".mp4", ".mkv", ".mov", ".avi")
+VIDEO_FILTER = f"Video files ({' '.join('*' + e for e in VIDEO_EXTENSIONS)});;All files (*)"
+DROP_HINT = "Drop a video here, or click Upload"
 SPEECH_OPTIONS = [("Malay speech → Malay subtitles", LANGUAGE),
                   ("English speech → Malay subtitles (translated)", ENGLISH)]
 
@@ -29,6 +31,8 @@ QWidget { font-family: 'Segoe UI'; font-size: 10.5pt; color: #1f2328; }
 QMainWindow, #root { background: #f6f7f9; }
 #title { font-size: 16pt; font-weight: 600; }
 #subtitle, #file, #status { color: #59636e; }
+#file { border: 2px dashed #d0d7de; border-radius: 8px; padding: 14px; background: white; }
+#file[drag="true"] { border-color: #1f6feb; background: #eef4ff; color: #1f6feb; }
 #badge { border-radius: 10px; padding: 4px 12px; font-weight: 600; }
 #badge[kind="gpu"] { background: #dafbe1; color: #116329; }
 #badge[kind="cpu"] { background: #fff1d6; color: #7a4a00; }
@@ -55,6 +59,11 @@ QTableCornerButton::section { background: #f6f7f9; border: none; border-bottom: 
 QTableWidget QLineEdit { background: white; color: #1f2328; border: 2px solid #1f6feb; border-radius: 3px;
                          padding: 0 4px; selection-background-color: #1f6feb; selection-color: white; }
 """
+
+
+def first_video(paths: list[str]) -> str | None:
+    """The first path with a supported video extension, if any."""
+    return next((p for p in paths if p and Path(p).suffix.lower() in VIDEO_EXTENSIONS), None)
 
 
 class TranscribeWorker(QThread):
@@ -195,7 +204,8 @@ class MainWindow(QMainWindow):
         buttons.addWidget(self.vocab_btn)
         layout.addLayout(buttons)
 
-        self.file_label = QLabel("No video selected", objectName="file")
+        self.file_label = QLabel(DROP_HINT, objectName="file", alignment=Qt.AlignCenter)
+        self.setAcceptDrops(True)
         layout.addWidget(self.file_label)
 
         self.progress = QProgressBar(textVisible=False)
@@ -264,12 +274,43 @@ class MainWindow(QMainWindow):
     def choose_video(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Select a video", "", VIDEO_FILTER)
         if path:
-            self.video = path
-            self.file_label.setText(Path(path).name)
-            self.status.setText("Ready. Click Generate.")
-            self.progress.setRange(0, 100)
-            self.progress.setValue(0)
-            self._update_buttons()
+            self.set_video(path)
+
+    def set_video(self, path: str) -> None:
+        self.video = path
+        self.file_label.setText(Path(path).name)
+        self.status.setText("Ready. Click Generate.")
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self._update_buttons()
+
+    # --- drag and drop ------------------------------------------------------
+    def _dropped_video(self, event) -> str | None:
+        if self._busy() or not event.mimeData().hasUrls():
+            return None
+        return first_video([u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()])
+
+    def _set_drag_highlight(self, on: bool) -> None:
+        self.file_label.setProperty("drag", on)
+        self.file_label.style().unpolish(self.file_label)
+        self.file_label.style().polish(self.file_label)
+
+    def dragEnterEvent(self, event) -> None:
+        if self._dropped_video(event):
+            event.acceptProposedAction()
+            self._set_drag_highlight(True)
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event) -> None:
+        self._set_drag_highlight(False)
+
+    def dropEvent(self, event) -> None:
+        self._set_drag_highlight(False)
+        path = self._dropped_video(event)
+        if path:
+            event.acceptProposedAction()
+            self.set_video(path)
 
     def generate(self) -> None:
         if not self.video:
