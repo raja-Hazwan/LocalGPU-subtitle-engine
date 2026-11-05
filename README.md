@@ -1,5 +1,7 @@
 # Subtitle Engine
 
+![Subtitle Engine: drop in a video, generate Malay subtitles, fix a line, export .srt](docs/demo.gif)
+
 A small Windows desktop app that turns a video into Malay subtitles, fully offline. The speaker can talk in Malay, or in English (translated to Malay).
 
 **Upload** a video (mp4, mkv, mov or avi), click **Generate**, review and edit the subtitles in the list, then **Export** to `.srt`, optionally with `.vtt` too.
